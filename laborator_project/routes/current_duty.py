@@ -4,7 +4,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 
-from models import CurrentDuty, DefaultDuty, Role, Shift, ShiftCreate
+from models.create_employee import Role
+from models.current_duty import CurrentDuty, DefaultDuty, Shift, ShiftCreate
 
 router = APIRouter(prefix="/duty", tags=["Сценарий 2: текущий дежурный"])
 logger = logging.getLogger("uvicorn.error")

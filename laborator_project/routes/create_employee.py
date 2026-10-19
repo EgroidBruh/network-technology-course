@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 
-from models import Employee, EmployeeCreate
+from models.create_employee import Employee, EmployeeCreate
 
 router = APIRouter(prefix="/employees", tags=["Сценарий 1: создание сотрудника"])
 
