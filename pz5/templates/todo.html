@@ -1,0 +1,41 @@
+{% extends "home.html" %}
+
+{% block todo_container %}
+<main class="container">
+    <hr>
+    <section aria-labelledby="add-heading" class="mb-4">
+        <h2 id="add-heading">Новая задача</h2>
+        <form action="{{ url_for('add_todo') }}" method="post">
+            <label for="item">Текст задачи</label>
+            <div class="input-group mb-3">
+                <input type="text" id="item" name="item" class="form-control"
+                       placeholder="Прочитать следующую главу учебника" required>
+                <div class="input-group-append">
+                    <button class="btn btn-outline-primary" type="submit">Добавить задачу</button>
+                </div>
+            </div>
+        </form>
+    </section>
+    {% if todo %}
+    <article class="card card-body">
+        <h2>Задача №{{ todo.id }}</h2>
+        <p>{{ todo.item }}</p>
+        <a href="{{ url_for('retrieve_todos') }}">Вернуться к списку задач</a>
+    </article>
+    {% else %}
+    <section aria-labelledby="todos-heading">
+        <h2 id="todos-heading">Задачи ({{ todos | length }})</h2>
+        <ul class="list-group">
+            {% for todo in todos %}
+            <li class="list-group-item">
+                {{ loop.index }}.
+                <a href="{{ url_for('get_single_todo', todo_id=todo.id) }}">{{ todo.item }}</a>
+            </li>
+            {% else %}
+            <li class="list-group-item">Пока задач нет. Добавьте первую задачу с помощью формы.</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,229 @@
+### Приветствие
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/ -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"message":"Добро пожаловать в приложение Егора!"}
+
+### Очистка перед проверкой
+$ curl --silent --show-error --max-time 10 --include -X DELETE http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 74
+content-type: application/json
+
+{"message":"Егор, все задачи успешно удалены!"}
+
+### Пустой список
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 12
+content-type: application/json
+
+{"todos":[]}
+
+### Создание задачи
+$ curl --silent --show-error --max-time 10 --include -X POST http://127.0.0.1:8001/todo -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"id": 1, "item": "Изучить модели ответов FastAPI"}'
+HTTP/1.1 201 Created
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 71
+content-type: application/json
+
+{"message":"Егор, задача успешно добавлена!"}
+
+### Список без ID
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 73
+content-type: application/json
+
+{"todos":[{"item":"Изучить модели ответов FastAPI"}]}
+
+### Одна задача с ID
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo/1 -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 77
+content-type: application/json
+
+{"todo":{"id":1,"item":"Изучить модели ответов FastAPI"}}
+
+### Обновление задачи
+$ curl --silent --show-error --max-time 10 --include -X PUT http://127.0.0.1:8001/todo/1 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"item": "Подготовить отчёт по практической работе"}'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 71
+content-type: application/json
+
+{"message":"Егор, задача успешно обновлена!"}
+
+### Проверка обновлённого текста и сохранения ID
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo/1 -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 103
+content-type: application/json
+
+{"todo":{"id":1,"item":"Подготовить отчёт по практической работе"}}
+
+### Повторный ID
+$ curl --silent --show-error --max-time 10 --include -X POST http://127.0.0.1:8001/todo -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"id": 1, "item": "Дубликат"}'
+HTTP/1.1 409 Conflict
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 89
+content-type: application/json
+
+{"detail":"Егор, задача с указанным ID уже существует."}
+
+### Дубликат не изменил список
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 99
+content-type: application/json
+
+{"todos":[{"item":"Подготовить отчёт по практической работе"}]}
+
+### Удаление одной задачи
+$ curl --silent --show-error --max-time 10 --include -X DELETE http://127.0.0.1:8001/todo/1 -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 67
+content-type: application/json
+
+{"message":"Егор, задача успешно удалена!"}
+
+### Получение отсутствующей задачи
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo/1 -H 'accept: application/json'
+HTTP/1.1 404 Not Found
+date: Sat, 17 Oct 2026 07:13:32 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":"Егор, задача с указанным ID не найдена."}
+
+### Обновление отсутствующей задачи
+$ curl --silent --show-error --max-time 10 --include -X PUT http://127.0.0.1:8001/todo/1 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"item": "Новый текст"}'
+HTTP/1.1 404 Not Found
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":"Егор, задача с указанным ID не найдена."}
+
+### Удаление отсутствующей задачи
+$ curl --silent --show-error --max-time 10 --include -X DELETE http://127.0.0.1:8001/todo/1 -H 'accept: application/json'
+HTTP/1.1 404 Not Found
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":"Егор, задача с указанным ID не найдена."}
+
+### Создание первой задачи для общей очистки
+$ curl --silent --show-error --max-time 10 --include -X POST http://127.0.0.1:8001/todo -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"id": 2, "item": "Изучить HTTPException"}'
+HTTP/1.1 201 Created
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 71
+content-type: application/json
+
+{"message":"Егор, задача успешно добавлена!"}
+
+### Создание второй задачи для общей очистки
+$ curl --silent --show-error --max-time 10 --include -X POST http://127.0.0.1:8001/todo -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"id": 3, "item": "Проверить API через curl"}'
+HTTP/1.1 201 Created
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 71
+content-type: application/json
+
+{"message":"Егор, задача успешно добавлена!"}
+
+### Две задачи без ID
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 101
+content-type: application/json
+
+{"todos":[{"item":"Изучить HTTPException"},{"item":"Проверить API через curl"}]}
+
+### Удаление всех задач
+$ curl --silent --show-error --max-time 10 --include -X DELETE http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 74
+content-type: application/json
+
+{"message":"Егор, все задачи успешно удалены!"}
+
+### Список после удаления всех задач
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 12
+content-type: application/json
+
+{"todos":[]}
+
+### Неверный тип ID в пути
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo/not-a-number -H 'accept: application/json'
+HTTP/1.1 422 Unprocessable Content
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 161
+content-type: application/json
+
+{"detail":[{"type":"int_parsing","loc":["path","todo_id"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"not-a-number"}]}
+
+### Нет обязательного поля item при создании
+$ curl --silent --show-error --max-time 10 --include -X POST http://127.0.0.1:8001/todo -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"id": 4}'
+HTTP/1.1 422 Unprocessable Content
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 93
+content-type: application/json
+
+{"detail":[{"type":"missing","loc":["body","item"],"msg":"Field required","input":{"id":4}}]}
+
+### Нет обязательного поля item при обновлении
+$ curl --silent --show-error --max-time 10 --include -X PUT http://127.0.0.1:8001/todo/4 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{}'
+HTTP/1.1 422 Unprocessable Content
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 87
+content-type: application/json
+
+{"detail":[{"type":"missing","loc":["body","item"],"msg":"Field required","input":{}}]}
+
+### Ошибочные запросы не добавили задачи
+$ curl --silent --show-error --max-time 10 --include -X GET http://127.0.0.1:8001/todo -H 'accept: application/json'
+HTTP/1.1 200 OK
+date: Sat, 17 Oct 2026 07:13:33 GMT
+server: uvicorn
+content-length: 12
+content-type: application/json
+
+{"todos":[]}

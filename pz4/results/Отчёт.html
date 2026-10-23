@@ -1,0 +1,296 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Отчёт по практической работе</title><style>
+@page {size:A4; margin:1.8cm;} body {font-family:"Liberation Serif"; font-size:11pt; line-height:1.15;}
+h1 {font-size:18pt;} h2 {font-size:14pt;} h3 {font-size:12pt;} h1,h2,h3 {page-break-after:avoid;}
+pre {font-family:"DejaVu Sans Mono"; font-size:8pt; white-space:pre-wrap; overflow-wrap:anywhere;}
+table {width:100%; font-size:9pt; border-collapse:collapse;} td {vertical-align:top;} p {margin:6pt 0;}
+</style></head><body><h1>Отчёт по практической работе</h1>
+<h2>Создание CRUD-приложения. Модели ответов и обработка ошибок</h2>
+<p>Выполнил: Егор.</p>
+<p>Дата выполнения: 17.10.2026.</p>
+<p>Дисциплина: «Сетевые технологии».</p>
+<p>Основание: методичка «ПЗ№4-1.pdf». Внутри PDF работа названа «Практическое занятие №5»; в исходном проекте сохранено название «Практическая работа №4».</p>
+<h2>1. Цель работы</h2>
+<p>Модернизировать приложение FastAPI для полного набора операций CRUD, сформировать ответы с помощью Pydantic и реализовать обработку ошибок с корректными HTTP-кодами. Персонализировать прикладные сообщения для разработчика Егора и проверить работу API реальными запросами curl.</p>
+<h2>2. Среда и запуск</h2>
+<p>Среда фактической проверки: Linux, Python 3.14.4; fastapi 0.143.3, pydantic 2.14.1, uvicorn 0.54.0. Зависимости установлены в локальное виртуальное окружение. Точный состав окружения сохранён в results/requirements-tested.txt.</p>
+<p>Сервер и клиент запускаются в разных терминалах, как требуется методичкой. Для проверки выбран порт 8001: на порту 8000 уже работала исходная версия приложения. Все приведённые ниже результаты относятся к обновлённой версии на 8001.</p>
+<pre>python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+uvicorn api:app --host 127.0.0.1 --port 8001</pre>
+<p>Во втором терминале:</p>
+<pre>python3 verify_curl.py http://127.0.0.1:8001</pre>
+<p>Сценарий вызывает установленную программу curl и проверяет HTTP-коды и содержимое JSON. Перед проверкой он очищает список задач. Swagger UI доступен по адресу http://127.0.0.1:8001/docs, схема — http://127.0.0.1:8001/openapi.json.</p>
+<h2>3. Выполненная модернизация</h2>
+<p>В model.py добавлены TodoItem для изменения текста задачи и TodoItems для списка задач без идентификаторов. Модель Todo по-прежнему содержит id и item. Примеры схем заданы через ConfigDict(json_schema_extra=...), поскольку установлен Pydantic 2; это современный эквивалент Config.schema_extra из методички.</p>
+<pre>class TodoItem(BaseModel):
+    item: str
+
+class TodoItems(BaseModel):
+    todos: list[TodoItem]</pre>
+<p>В todo.py добавлены PUT /todo/{todo_id}, DELETE /todo/{todo_id} и DELETE /todo. Создание задачи возвращает 201 Created. Успешные чтение, обновление и удаление возвращают 200 OK. PUT меняет только item, сохраняя id.</p>
+<pre>@todo_router.get(&quot;/todo&quot;, response_model=TodoItems)
+async def retrieve_todos() -&gt; dict:
+    return {&quot;todos&quot;: todo_list}</pre>
+<p>Модель ответа фильтрует id только при выдаче общего списка. GET /todo/{todo_id} возвращает полную задачу с идентификатором.</p>
+<p>Для отсутствующей задачи при GET, PUT и DELETE генерируется HTTPException с кодом 404. Прикладные сообщения содержат имя Егора. Дополнительно предотвращено создание задач с повторным ID: такой запрос возвращает 409 Conflict, чтобы обращение по идентификатору было однозначным.</p>
+<pre>raise HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail=&quot;Егор, задача с указанным ID не найдена.&quot;,
+)</pre>
+<p>Неверный тип ID в пути и отсутствие обязательного поля item обрабатываются стандартной валидацией FastAPI/Pydantic: HTTP 422 с описанием в detail. Системные сообщения валидатора сохранены в стандартном формате.</p>
+<h2>4. Персональная тема и типовые действия (пункт 4 задания)</h2>
+<p>В качестве персональной темы принята тема «Планировщик учебных задач студента Егора». Отдельная тема пользователем не была указана. Типовые действия выражены следующими командами-декораторами FastAPI и реализованы в проекте:</p>
+<table border="1" cellspacing="0" cellpadding="5">
+<tr><td>Действие студента</td><td>Команда FastAPI</td><td>Тело запроса / результат</td></tr>
+<tr><td>Добавить учебную задачу</td><td>@todo_router.post(&quot;/todo&quot;, status_code=201)</td><td>Вход: id и item; ответ: message</td></tr>
+<tr><td>Посмотреть план занятий</td><td>@todo_router.get(&quot;/todo&quot;, response_model=TodoItems)</td><td>todos: список объектов только с item</td></tr>
+<tr><td>Открыть задачу</td><td>@todo_router.get(&quot;/todo/{todo_id}&quot;)</td><td>todo: id и item</td></tr>
+<tr><td>Исправить описание задания</td><td>@todo_router.put(&quot;/todo/{todo_id}&quot;)</td><td>Вход: item; ответ: message</td></tr>
+<tr><td>Удалить выполненную задачу</td><td>@todo_router.delete(&quot;/todo/{todo_id}&quot;)</td><td>message</td></tr>
+<tr><td>Очистить учебный план</td><td>@todo_router.delete(&quot;/todo&quot;)</td><td>message</td></tr>
+</table>
+<p>Варианты ошибок для этой темы:</p>
+<table border="1" cellspacing="0" cellpadding="5">
+<tr><td>Ситуация</td><td>Код HTTP</td><td>Модель тела ошибки</td></tr>
+<tr><td>Задача с данным ID отсутствует</td><td>404</td><td>{&quot;detail&quot;: &quot;Егор, задача с указанным ID не найдена.&quot;}</td></tr>
+<tr><td>Попытка повторно занять ID</td><td>409</td><td>{&quot;detail&quot;: &quot;Егор, задача с указанным ID уже существует.&quot;}</td></tr>
+<tr><td>Некорректный ID или нет item</td><td>422</td><td>{&quot;detail&quot;: [описания ошибок валидации]}</td></tr>
+</table>
+<h2>5. Фактические результаты curl</h2>
+<p>Ниже приведены команды, фактические коды HTTP и JSON-тела ответов запущенного сервера. Все ответы имели Content-Type: application/json. Полные заголовки, включая HTTP-статус, date, server, content-length и content-type, сохранены в results/curl-transcript.txt. Структурированные результаты находятся в results/curl-results.json.</p>
+<h3>5.1. Приветствие</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/ \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;message&quot;: &quot;Добро пожаловать в приложение Егора!&quot;
+}</pre>
+<h3>5.2. Очистка перед проверкой</h3>
+<pre>curl --include -X DELETE http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, все задачи успешно удалены!&quot;
+}</pre>
+<h3>5.3. Пустой список</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todos&quot;: []
+}</pre>
+<h3>5.4. Создание задачи</h3>
+<pre>curl --include -X POST http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;id&quot;: 1, &quot;item&quot;: &quot;Изучить модели ответов FastAPI&quot;}&#x27;</pre>
+<p>Получено: HTTP 201.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, задача успешно добавлена!&quot;
+}</pre>
+<h3>5.5. Список без ID</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todos&quot;: [
+    {
+      &quot;item&quot;: &quot;Изучить модели ответов FastAPI&quot;
+    }
+  ]
+}</pre>
+<h3>5.6. Одна задача с ID</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todo&quot;: {
+    &quot;id&quot;: 1,
+    &quot;item&quot;: &quot;Изучить модели ответов FastAPI&quot;
+  }
+}</pre>
+<h3>5.7. Обновление задачи</h3>
+<pre>curl --include -X PUT http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;item&quot;: &quot;Подготовить отчёт по практической работе&quot;}&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, задача успешно обновлена!&quot;
+}</pre>
+<h3>5.8. Проверка обновлённого текста и сохранения ID</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todo&quot;: {
+    &quot;id&quot;: 1,
+    &quot;item&quot;: &quot;Подготовить отчёт по практической работе&quot;
+  }
+}</pre>
+<h3>5.9. Повторный ID</h3>
+<pre>curl --include -X POST http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;id&quot;: 1, &quot;item&quot;: &quot;Дубликат&quot;}&#x27;</pre>
+<p>Получено: HTTP 409.</p>
+<pre>{
+  &quot;detail&quot;: &quot;Егор, задача с указанным ID уже существует.&quot;
+}</pre>
+<h3>5.10. Дубликат не изменил список</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todos&quot;: [
+    {
+      &quot;item&quot;: &quot;Подготовить отчёт по практической работе&quot;
+    }
+  ]
+}</pre>
+<h3>5.11. Удаление одной задачи</h3>
+<pre>curl --include -X DELETE http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, задача успешно удалена!&quot;
+}</pre>
+<h3>5.12. Получение отсутствующей задачи</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 404.</p>
+<pre>{
+  &quot;detail&quot;: &quot;Егор, задача с указанным ID не найдена.&quot;
+}</pre>
+<h3>5.13. Обновление отсутствующей задачи</h3>
+<pre>curl --include -X PUT http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;item&quot;: &quot;Новый текст&quot;}&#x27;</pre>
+<p>Получено: HTTP 404.</p>
+<pre>{
+  &quot;detail&quot;: &quot;Егор, задача с указанным ID не найдена.&quot;
+}</pre>
+<h3>5.14. Удаление отсутствующей задачи</h3>
+<pre>curl --include -X DELETE http://127.0.0.1:8001/todo/1 \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 404.</p>
+<pre>{
+  &quot;detail&quot;: &quot;Егор, задача с указанным ID не найдена.&quot;
+}</pre>
+<h3>5.15. Создание первой задачи для общей очистки</h3>
+<pre>curl --include -X POST http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;id&quot;: 2, &quot;item&quot;: &quot;Изучить HTTPException&quot;}&#x27;</pre>
+<p>Получено: HTTP 201.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, задача успешно добавлена!&quot;
+}</pre>
+<h3>5.16. Создание второй задачи для общей очистки</h3>
+<pre>curl --include -X POST http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;id&quot;: 3, &quot;item&quot;: &quot;Проверить API через curl&quot;}&#x27;</pre>
+<p>Получено: HTTP 201.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, задача успешно добавлена!&quot;
+}</pre>
+<h3>5.17. Две задачи без ID</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todos&quot;: [
+    {
+      &quot;item&quot;: &quot;Изучить HTTPException&quot;
+    },
+    {
+      &quot;item&quot;: &quot;Проверить API через curl&quot;
+    }
+  ]
+}</pre>
+<h3>5.18. Удаление всех задач</h3>
+<pre>curl --include -X DELETE http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;message&quot;: &quot;Егор, все задачи успешно удалены!&quot;
+}</pre>
+<h3>5.19. Список после удаления всех задач</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todos&quot;: []
+}</pre>
+<h3>5.20. Неверный тип ID в пути</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo/not-a-number \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 422.</p>
+<pre>{
+  &quot;detail&quot;: [
+    {
+      &quot;type&quot;: &quot;int_parsing&quot;,
+      &quot;loc&quot;: [
+        &quot;path&quot;,
+        &quot;todo_id&quot;
+      ],
+      &quot;msg&quot;: &quot;Input should be a valid integer, unable to parse string as an integer&quot;,
+      &quot;input&quot;: &quot;not-a-number&quot;
+    }
+  ]
+}</pre>
+<h3>5.21. Нет обязательного поля item при создании</h3>
+<pre>curl --include -X POST http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;id&quot;: 4}&#x27;</pre>
+<p>Получено: HTTP 422.</p>
+<pre>{
+  &quot;detail&quot;: [
+    {
+      &quot;type&quot;: &quot;missing&quot;,
+      &quot;loc&quot;: [
+        &quot;body&quot;,
+        &quot;item&quot;
+      ],
+      &quot;msg&quot;: &quot;Field required&quot;,
+      &quot;input&quot;: {
+        &quot;id&quot;: 4
+      }
+    }
+  ]
+}</pre>
+<h3>5.22. Нет обязательного поля item при обновлении</h3>
+<pre>curl --include -X PUT http://127.0.0.1:8001/todo/4 \
+  -H &#x27;accept: application/json&#x27; \
+  -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{}&#x27;</pre>
+<p>Получено: HTTP 422.</p>
+<pre>{
+  &quot;detail&quot;: [
+    {
+      &quot;type&quot;: &quot;missing&quot;,
+      &quot;loc&quot;: [
+        &quot;body&quot;,
+        &quot;item&quot;
+      ],
+      &quot;msg&quot;: &quot;Field required&quot;,
+      &quot;input&quot;: {}
+    }
+  ]
+}</pre>
+<h3>5.23. Ошибочные запросы не добавили задачи</h3>
+<pre>curl --include -X GET http://127.0.0.1:8001/todo \
+  -H &#x27;accept: application/json&#x27;</pre>
+<p>Получено: HTTP 200.</p>
+<pre>{
+  &quot;todos&quot;: []
+}</pre>
+<h2>6. Результаты проверки и вывод</h2>
+<p>Успешно проверены 23 запросов curl. Подтверждены создание задачи с кодом 201, чтение списка без ID, чтение одной задачи с ID, изменение текста без изменения ID, удаление одной и всех задач. Все три операции над отсутствующей задачей возвращают 404. Повторный ID возвращает 409 и не меняет список. Некорректные запросы возвращают 422 и не добавляют данные.</p>
+<p>Дополнительно через curl получена схема OpenAPI: проверена ссылка GET /todo на TodoItems, документирование ответа 201 для POST и наличие примера TodoItem. Копия схемы находится в results/openapi.json.</p>
+<p>Задачи хранятся в памяти одного процесса, поэтому после перезапуска сервера список очищается. Для учебной демонстрации используется один worker. Dockerfile сохранён; проверка выполнена локально через Uvicorn, сборка Docker не проводилась.</p>
+<p>Приложение реализует требования методички по CRUD, моделям ответов, обработке ошибок и персонализации сообщений. Исходные файлы api.py, model.py, todo.py и requirements.txt находятся рядом с отчётом; README.md содержит команды запуска и таблицу маршрутов.</p></body></html>
