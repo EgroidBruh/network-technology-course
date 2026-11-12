@@ -1,0 +1,14 @@
+.git
+.agents
+.aws
+.codex
+.venv
+**/__pycache__
+*.pyc
+data
+*.db
+tests
+docs
+scripts
+*.pdf
+*.md

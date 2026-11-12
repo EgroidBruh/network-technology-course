@@ -1,31 +1,37 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
 
-from planner.models.users import NewUser, UserSignIn
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
+
+from planner.database.connection import get_session
+from planner.models.users import NewUser, UserRecord, UserSignIn
+from planner.security import hash_password, verify_password
 
 user_router = APIRouter(tags=["User"])
-users: dict[str, NewUser] = {}
+SessionDep = Annotated[Session, Depends(get_session)]
 
 
 @user_router.post("/signup")
-async def sign_new_user(data: NewUser) -> dict[str, str]:
-    if data.email in users:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User with supplied email exists",
-        )
-    users[data.email] = data
+def sign_new_user(data: NewUser, session: SessionDep) -> dict[str, str]:
+    user = UserRecord(
+        email=str(data.email), password_hash=hash_password(data.password),
+        events=[event.model_dump() for event in data.events],
+    )
+    session.add(user)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(409, "User with supplied email exists") from None
     return {"message": "User successfully registered!"}
 
 
 @user_router.post("/signin")
-async def sign_user_in(data: UserSignIn) -> dict[str, str]:
-    user = users.get(data.email)
+def sign_user_in(data: UserSignIn, session: SessionDep) -> dict[str, str]:
+    user = session.exec(select(UserRecord).where(UserRecord.email == str(data.email))).first()
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist"
-        )
-    if user.password != data.password:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Wrong credentials passed"
-        )
+        raise HTTPException(404, "User does not exist")
+    if not verify_password(data.password, user.password_hash):
+        raise HTTPException(403, "Wrong credentials passed")
     return {"message": "User signed in successfully"}
